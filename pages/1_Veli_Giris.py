@@ -15,15 +15,26 @@ def turkce_tarih_formatla(tarih_str):
     tr_gun = gunler_tr.get(ing_gun, ing_gun)
     return tarih_obj.strftime(f'%d.%m.%Y {tr_gun}')
 
-# --- CSS ---
+# --- CSS VE MOBİL TASARIM ---
 st.markdown("""
+    <meta name="color-scheme" content="dark only">
     <style>
-        .block-container { padding-top: 1rem !important; }
-        .stApp { background-color: #0E1117; color: white; }
+        /* GENEL RENK SABİTLEME */
+        .stApp { background-color: #0E1117 !important; }
+        h1, h2, h3, span, label, p, .stMarkdown { color: white !important; }
+        
+        /* GİRİŞ KUTULARI (Telefonda görünürlük için beyaz arka plan) */
+        input { 
+            background-color: white !important; 
+            color: black !important; 
+            -webkit-text-fill-color: black !important;
+        }
+
         .custom-header {
             background-color: #1E232D; padding: 25px; border-radius: 20px;
-            border-bottom: 4px solid #1f77b4; text-align: center; margin-bottom: 30px;
+            border-bottom: 4px solid #28a745; text-align: center; margin-bottom: 30px;
         }
+
         [data-testid="stVerticalBlockBorderWrapper"] {
             border: 1px solid #30363D !important;
             border-radius: 15px !important;
@@ -31,13 +42,47 @@ st.markdown("""
             padding: 20px !important;
             margin-bottom: 25px !important;
         }
+
         .day-label {
             background-color: #1f77b4; color: white !important;
             padding: 8px 15px; border-radius: 8px; font-weight: bold;
             font-size: 1.1rem; margin-bottom: 15px; display: inline-block;
         }
+
+        /* MOBİLDE BUTONLARI YAN YANA 3'LÜ DİZ */
+        @media (max-width: 640px) {
+            div[data-testid="stHorizontalBlock"] {
+                display: flex !important;
+                flex-direction: row !important;
+                flex-wrap: wrap !important;
+                gap: 5px !important;
+                justify-content: flex-start !important;
+            }
+            div[data-testid="stHorizontalBlock"] > div {
+                width: 31% !important;
+                min-width: 31% !important;
+                flex: 1 1 31% !important;
+            }
+            .stButton button {
+                width: 100% !important;
+                font-size: 12px !important;
+                padding: 5px 2px !important;
+            }
+        }
+
+        /* BUTON RENKLERİ */
+        .stButton button { transition: 0.3s; font-weight: bold !important; border-radius: 8px !important; }
+        
+        /* Yeşil (Boş) */
+        button:contains("🟢") { background-color: #0E2A1B !important; color: #2ECC71 !important; border: 1px solid #2ECC71 !important; }
+        /* Mavi (Senin) */
+        button:contains("🔵") { background-color: #1B263B !important; color: #3498DB !important; border: 1px solid #3498DB !important; }
+        /* Kırmızı (Dolu) */
+        button:contains("🔴") { background-color: #2D1B1E !important; color: #E74C3C !important; border: 1px solid #E74C3C !important; }
+
         [data-testid="stSidebarNav"], header { display: none !important; }
     </style>
+    
     <div class="custom-header">
         <h1 style="color: white !important; margin: 0;">👩‍👦 VELİ RANDEVU SİSTEMİ</h1>
     </div>
@@ -82,6 +127,8 @@ else:
             with st.container(border=True):
                 tr_tarih = turkce_tarih_formatla(gun)
                 st.markdown(f'<div class="day-label">🗓️ {tr_tarih}</div>', unsafe_allow_html=True)
+                
+                # MOBİL AYARI İÇİN: Sütun sayısını webde 6 tutuyoruz, CSS mobilde bunu yan yana dizecek.
                 sub_cols = st.columns(6)
                 gunun_slotlari = [r for r in randevular if r[1] == gun]
                 for i, (sid, tarih, saat, durum, v_sahibi) in enumerate(gunun_slotlari):
@@ -96,5 +143,6 @@ else:
                             if st.button(f"🔵 {saat}", key=f"v_{sid}"):
                                 conn.execute("UPDATE randevular SET veli_tc=NULL, durum='Bos' WHERE id=?", (sid,))
                                 conn.commit(); st.rerun()
-                        else: st.button(f"🔴 {saat}", key=f"v_{sid}", disabled=True)
+                        else: 
+                            st.button(f"🔴 {saat}", key=f"v_{sid}", disabled=True)
     conn.close()
