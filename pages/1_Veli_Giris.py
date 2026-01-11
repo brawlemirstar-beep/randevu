@@ -129,10 +129,10 @@ else:
                 st.markdown(f'<div class="day-label">🗓️ {tr_tarih}</div>', unsafe_allow_html=True)
                 
                 # MOBİL AYARI İÇİN: Sütun sayısını webde 6 tutuyoruz, CSS mobilde bunu yan yana dizecek.
-                sub_cols = st.columns(6)
+                sub_cols = st.columns(3)
                 gunun_slotlari = [r for r in randevular if r[1] == gun]
                 for i, (sid, tarih, saat, durum, v_sahibi) in enumerate(gunun_slotlari):
-                    with sub_cols[i % 6]:
+                    with sub_cols[i % 3]:
                         if durum == "Bos":
                             if st.button(f"🟢 {saat}", key=f"v_{sid}"):
                                 if mevcut_r: st.warning("Zaten bir randevunuz var!")
