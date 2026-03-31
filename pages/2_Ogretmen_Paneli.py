@@ -42,17 +42,15 @@ st.markdown("""
         .stButton>button {
             border-radius: 6px !important;
             font-weight: bold !important;
-            white-space: nowrap !important;
-            overflow: hidden !important;
-            text-overflow: ellipsis !important;
         }
 
-        /* X Silme Butonu Kırmızı Stil */
-        button[key*="del_"] {
-            color: #ff4b4b !important;
-            border-color: #ff4b4b !important;
+        button[key*="del_"], button[key*="edit_"] {
             padding: 0px !important;
+            min-height: 35px !important;
         }
+        
+        button[key*="del_"] { color: #ff4b4b !important; border-color: #ff4b4b !important; }
+        button[key*="edit_"] { color: #f1c40f !important; border-color: #f1c40f !important; }
 
         header, [data-testid="stToolbar"] { display: none !important; }
     </style>
@@ -74,33 +72,54 @@ if not st.session_state.ogretmen_giris_yapildi:
             conn.close()
             if user:
                 st.session_state.ogretmen_giris_yapildi = True
-                st.session_state.ogretmen_id = user[0]
-                st.session_state.ogretmen_ad = user[1]
+                st.session_state.ogretmen_id = user[0]; st.session_state.ogretmen_ad = user[1]
                 st.rerun()
             else: st.error("Hatalı Giriş!")
 else:
-    t1, t2, t3, t4 = st.tabs(["📅 Planla", "⚡ Takvim Yönetimi", "📋 Liste", "🗑️ Gün Sil"])
+    t1, t2, t3, t4 = st.tabs(["📅 Planlama", "⚡ Takvim Yönetimi", "📋 Liste", "🗑️ Gün Sil"])
     conn = sqlite3.connect('okul_sistemi_final.db')
 
-    # --- TAB 1: PLANLAMA ---
+    # --- TAB 1: AKILLI PLANLAMA (TOPLU VE TEKLİ) ---
     with t1:
         with st.container(border=True):
-            st.write("### 🕒 Otomatik Program Oluştur")
-            c1, c2, c3, c4 = st.columns(4)
-            t_sec = c1.date_input("Tarih", min_value=datetime.today())
-            b_s = c2.time_input("Başla", value=datetime.strptime("09:00", "%H:%M").time())
-            s_s = c3.time_input("Bitir", value=datetime.strptime("16:00", "%H:%M").time())
-            aralik = c4.selectbox("Aralık", [15, 20, 30, 45, 60], index=2)
+            st.write("### 🕒 Program Oluştur")
+            m1, m2 = st.columns(2)
+            plan_tipi = m1.radio("İşlem Tipi", ["Toplu Slot Oluştur", "Tekli Özel Saat Ekle"], horizontal=True)
             
-            if st.button(f"{aralik} Dakikalık Slotları Kaydet", use_container_width=True):
-                curr = datetime.combine(t_sec, b_s)
-                while curr < datetime.combine(t_sec, s_s):
+            if plan_tipi == "Toplu Slot Oluştur":
+                c1, c2, c3, c4 = st.columns(4)
+                t_sec = c1.date_input("Tarih", min_value=datetime.today())
+                b_s = c2.time_input("Başla", value=datetime.strptime("09:00", "%H:%M").time())
+                s_s = c3.time_input("Bitir", value=datetime.strptime("16:00", "%H:%M").time())
+                aralik = c4.selectbox("Aralık", [15, 20, 30, 45, 60], index=2)
+                
+                if st.button("Otomatik Slotları Kaydet", use_container_width=True):
+                    curr = datetime.combine(t_sec, b_s)
+                    while curr < datetime.combine(t_sec, s_s):
+                        saat_str = curr.strftime('%H:%M')
+                        tarih_str = t_sec.strftime('%Y-%m-%d')
+                        exists = conn.execute("SELECT id FROM randevular WHERE ogretmen_id=? AND tarih=? AND saat=?", 
+                                            (st.session_state.ogretmen_id, tarih_str, saat_str)).fetchone()
+                        if not exists:
+                            conn.execute("INSERT INTO randevular (ogretmen_id, tarih, saat, durum) VALUES (?,?,?, 'Bos')", 
+                                         (st.session_state.ogretmen_id, tarih_str, saat_str))
+                        curr += timedelta(minutes=aralik)
+                    conn.commit(); st.success("Slotlar eklendi!"); st.rerun()
+            
+            else:
+                c1, c2 = st.columns(2)
+                t_sec = c1.date_input("Tarih Seç", min_value=datetime.today())
+                mevcutlar = [r[0] for r in conn.execute("SELECT saat FROM randevular WHERE ogretmen_id=? AND tarih=?", 
+                                                        (st.session_state.ogretmen_id, t_sec.strftime('%Y-%m-%d'))).fetchall()]
+                saat_listesi = [f"{h:02d}:{m:02d}" for h in range(8, 20) for m in [0, 15, 30, 45] if f"{h:02d}:{m:02d}" not in mevcutlar]
+                
+                secilen_tek_saat = c2.selectbox("Eklenebilir Saatler", saat_listesi)
+                if st.button("Tekli Saati Ekle", use_container_width=True):
                     conn.execute("INSERT INTO randevular (ogretmen_id, tarih, saat, durum) VALUES (?,?,?, 'Bos')", 
-                                 (st.session_state.ogretmen_id, t_sec.strftime('%Y-%m-%d'), curr.strftime('%H:%M')))
-                    curr += timedelta(minutes=aralik)
-                conn.commit(); st.success("Slotlar eklendi!"); st.rerun()
+                                 (st.session_state.ogretmen_id, t_sec.strftime('%Y-%m-%d'), secilen_tek_saat))
+                    conn.commit(); st.rerun()
 
-    # --- TAB 2: TAKVİM YÖNETİMİ (İSİMLER BUTON ÜZERİNDE) ---
+    # --- TAB 2: TAKVİM YÖNETİMİ (GÜN İÇİ TEKLİ EKLEME DAHİL) ---
     with t2:
         query = """
             SELECT r.id, r.tarih, r.saat, r.durum, r.veli_tc, o.ad_soyad 
@@ -113,50 +132,63 @@ else:
 
         for gun in gunler:
             st.markdown(f'<div class="day-header">🗓️ {turkce_tarih_formatla(gun)}</div>', unsafe_allow_html=True)
+            
             with st.container(border=True):
-                gunun_verileri = [v for v in veriler if v[1] == gun]
-                cols = st.columns(2) # İsimler sığsın diye sütun sayısını 2'ye düşürdüm
+                # --- GÜN İÇİ AKILLI TEKLİ EKLEME ---
+                with st.expander(f"➕ Bu Güne Özel Saat Ekle"):
+                    # O güne ait mevcut saatleri çek
+                    gunun_mevcut_saatleri = [v[2] for v in veriler if v[1] == gun]
+                    # Sadece mevcut olmayan saatleri listele
+                    gunun_liste = [f"{h:02d}:{m:02d}" for h in range(8, 20) for m in [0, 15, 30, 45] if f"{h:02d}:{m:02d}" not in gunun_mevcut_saatleri]
+                    
+                    c_ekle, c_onay = st.columns([3, 1])
+                    eklenecek_saat = c_ekle.selectbox("Saat Seç", gunun_liste, key=f"sel_{gun}")
+                    if c_onay.button("Ekle", key=f"add_{gun}"):
+                        conn.execute("INSERT INTO randevular (ogretmen_id, tarih, saat, durum) VALUES (?,?,?, 'Bos')",
+                                     (st.session_state.ogretmen_id, gun, eklenecek_saat))
+                        conn.commit(); st.rerun()
+
+                st.divider()
                 
+                gunun_verileri = [v for v in veriler if v[1] == gun]
+                cols = st.columns(2)
                 for i, (rid, r_tarih, r_saat, r_durum, r_veli_tc, r_ogrenci) in enumerate(gunun_verileri):
                     with cols[i % 2]:
-                        sub_c1, sub_c2 = st.columns([5, 1])
+                        sub_c1, sub_c2, sub_c3 = st.columns([6, 1, 1])
+                        if r_durum == "Bos": label = f"🟢 {r_saat} (Boş)"
+                        elif r_veli_tc == "KAPALI": label = f"🚫 {r_saat} (Kapalı)"
+                        else: label = f"👤 {r_saat} | {r_ogrenci[:12] if r_ogrenci else '...'}"
                         
-                        # Buton Yazısı Belirleme
-                        if r_durum == "Bos":
-                            label = f"🟢 {r_saat} (Boş)"
-                        elif r_veli_tc == "KAPALI":
-                            label = f"🚫 {r_saat} (Kapalı)"
-                        else:
-                            # İSİM BURADA GÖRÜNECEK:
-                            isim_kisa = r_ogrenci[:15] + ".." if r_ogrenci and len(r_ogrenci) > 15 else r_ogrenci
-                            label = f"👤 {r_saat} | {isim_kisa}"
-                        
-                        # Ana Buton
                         if sub_c1.button(label, key=f"btn_{rid}", use_container_width=True):
                             yeni_durum = "Dolu" if r_durum == "Bos" else "Bos"
                             yeni_veli = "KAPALI" if r_durum == "Bos" else None
                             conn.execute("UPDATE randevular SET durum=?, veli_tc=? WHERE id=?", (yeni_durum, yeni_veli, rid))
                             conn.commit(); st.rerun()
                         
-                        # X Butonu
-                        if sub_c2.button("✖", key=f"del_{rid}", use_container_width=True):
+                        if sub_c2.button("✏️", key=f"edit_{rid}"): st.session_state[f"edit_mode_{rid}"] = True
+                        if sub_c3.button("✖", key=f"del_{rid}"):
                             conn.execute("DELETE FROM randevular WHERE id=?", (rid,))
                             conn.commit(); st.rerun()
+                        
+                        if st.session_state.get(f"edit_mode_{rid}", False):
+                            new_val = st.text_input("Saat", value=r_saat, key=f"inp_{rid}")
+                            if st.button("Kaydet", key=f"save_{rid}"):
+                                conn.execute("UPDATE randevular SET saat=? WHERE id=?", (new_val, rid))
+                                conn.commit(); st.session_state[f"edit_mode_{rid}"] = False; st.rerun()
 
-    # --- TAB 3: LİSTE ---
+    # --- TAB 3: LİSTE & TAB 4: GÜN SİLME (Stabil) ---
     with t3:
         list_data = [v for v in veriler if v[4] and v[4] != 'KAPALI']
         if list_data:
             df = pd.DataFrame(list_data, columns=["ID", "Tarih", "Saat", "Durum", "TC", "Öğrenci"])
             df["Tarih"] = df["Tarih"].apply(turkce_tarih_formatla)
             st.table(df[["Tarih", "Saat", "Öğrenci"]])
-        else: st.info("Randevu yok.")
+        else: st.info("Randevu bulunmuyor.")
 
-    # --- TAB 4: GÜN SİLME ---
     with t4:
         if gunler:
             secilen = st.selectbox("Silinecek Günü Seç", gunler, format_func=turkce_tarih_formatla)
-            if st.button("⚠️ SEÇİLİ GÜNÜ KOMPLE SİL", use_container_width=True):
+            if st.button("⚠️ GÜNÜ KOMPLE SİL", use_container_width=True):
                 conn.execute("DELETE FROM randevular WHERE ogretmen_id=? AND tarih=?", (st.session_state.ogretmen_id, secilen))
                 conn.commit(); st.rerun()
 
