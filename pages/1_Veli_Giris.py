@@ -96,8 +96,8 @@ if 'veli_giris_yapildi' not in st.session_state:
 if not st.session_state.veli_giris_yapildi:
     with st.container(border=True):
         st.subheader("🔑 Veli Girişi")
-        v_tc = st.text_input("Veli T.C. Kimlik No")
-        v_no = st.text_input("Öğrenci Okul No")
+        v_tc = st.text_input("Öğrenci Okul No")
+        v_no = st.text_input("Şifre")
         if st.button("Giriş Yap", use_container_width=True):
             conn = sqlite3.connect('okul_sistemi_final.db')
             ogr = conn.execute("SELECT ad_soyad, sinif FROM ogrenciler WHERE tc_no=? AND okul_no=?", (v_tc, v_no)).fetchone()
