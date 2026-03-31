@@ -21,26 +21,60 @@ def turkce_tarih_formatla(tarih_str):
 
 # --- CSS TASARIM ---
 st.markdown("""
+   <meta name="color-scheme" content="dark only">
     <style>
-        .block-container { padding-top: 1rem !important; }
-        .stApp { background-color: #0E1117; color: white; }
-        .custom-header {
-            background-color: #1E232D; padding: 25px; border-radius: 20px;
-            border-bottom: 4px solid #28a745; text-align: center; margin-bottom: 30px;
+        /* 1. TÜM SİSTEMİN ARKA PLANINI VE YAZI RENGİNİ SABİTLE */
+        /* Bu kısım telefonun modunu (light/dark) görmezden gelir */
+        html, body, [data-testid="stAppViewContainer"] {
+            background-color: #0E1117 !important;
         }
-        [data-testid="stVerticalBlockBorderWrapper"] {
-            border: 1px solid #30363D !important;
-            border-radius: 15px !important;
-            background-color: #161B22 !important;
-            padding: 20px !important;
-            margin-bottom: 25px !important;
+
+        /* TÜM yazıların (Başlık, metin, etiket) rengini beyaza kilitle */
+        h1, h2, h3, h4, h5, h6, p, span, label, .stMarkdown, div {
+            color: #FFFFFF !important;
         }
-        .date-header { background-color: #1E232D; padding: 10px; border-radius: 8px; border-left: 5px solid #28a745; margin: 15px 0; font-weight: bold; }
-        [data-testid="stSidebarNav"], header { display: none !important; }
+
+        /* 2. BUTONLARI TELEFONDA GÖRÜNÜR YAP */
+        .stButton>button {
+            background-color: #262730 !important;
+            color: #FFFFFF !important;
+            border: 1px solid #4A4A4A !important;
+            width: 100% !important;
+            border-radius: 8px !important;
+            font-weight: bold !important;
+        }
+
+        /* Butonun üzerine gelince veya tıklayınca beyaz kalmasını sağla */
+        .stButton>button:hover, .stButton>button:active, .stButton>button:focus {
+            color: #1f77b4 !important;
+            border-color: #1f77b4 !important;
+            background-color: #262730 !important;
+        }
+
+        /* 3. GİRİŞ KUTULARI (Görünmemesinin temel sebebi) */
+        /* Kutunun içini hafif gri yap, yazıyı ise SİYAH veya ÇOK KOYU yap */
+        input {
+            background-color: #FFFFFF !important;
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important; /* iOS için zorunlu */
+        }
+
+        /* 4. MOBİL EKRAN AYARI */
+        @media (max-width: 640px) {
+            .block-container {
+                padding: 1rem !important;
+            }
+            .stButton>button {
+                padding: 10px 5px !important;
+                font-size: 14px !important;
+            }
+        }
+
+        /* Streamlit üst bar ve menüyü gizle */
+        header, [data-testid="stToolbar"] {
+            display: none !important;
+        }
     </style>
-    <div class="custom-header">
-        <h1 style='margin:0; color:white;'>👨‍🏫 ÖĞRETMEN YÖNETİM PANELİ</h1>
-    </div>
 """, unsafe_allow_html=True)
 
 if st.button("⬅️ Ana Menüye Dön"): st.switch_page("app.py")
